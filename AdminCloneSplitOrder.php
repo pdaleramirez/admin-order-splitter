@@ -44,7 +44,9 @@ class AdminCloneSplitOrder {
         }
         update_post_meta( $newOrderId, '_customer_user', get_current_user_id() );
 
-
+        // Initial total values for 0 quantity on cloned orders
+        $emptyTotals = array('subtotal' => 0, 'subtotal_tax' => 0,
+                            'total' => 0, 'tax' => 0);
         $newOrderObj = new WC_Order($newOrderId);
         if(!empty($products)) {
             foreach($products as $product) {
@@ -54,22 +56,40 @@ class AdminCloneSplitOrder {
                     0,
                     array(
                         'variation' => $product['variation'],
-                        'totals'    => $product['totals']
+                        'totals'    => $emptyTotals
                     )
                 );
 
 
-                $origKey = $this->config['origKey'];
+
                 $parentItemKey = $this->config['parentItemKey'];
-
-//                if(!wc_get_order_item_meta( $item_id, $origKey, $product['quantity'] )) {
-//                    wc_update_order_item_meta( $item_id, $origKey, $product['quantity']);
-//                }
-
+                // Stores parent or original item id for the cloned line
                 wc_update_order_item_meta( $item_id, $parentItemKey, $product['item_id'] );
 
+                // Store original values for the item line
+                $origKey = $this->config['origKey'];
                 if(!wc_get_order_item_meta( $product['item_id'], $origKey, $product['quantity'] )) {
                     wc_update_order_item_meta( $product['item_id'], $origKey, $product['quantity'] );
+                }
+
+                $origSubTotalKey = '_orig_subtotal';
+                if(!wc_get_order_item_meta( $product['item_id'], $origSubTotalKey, $product['totals']['subtotal'] )) {
+                    wc_update_order_item_meta( $product['item_id'], $origSubTotalKey, $product['totals']['subtotal'] );
+                }
+
+                $origSubTotalTaxKey = '_orig_subtotal_tax';
+                if(!wc_get_order_item_meta( $product['item_id'], $origSubTotalTaxKey, $product['totals']['subtotal_tax'] )) {
+                    wc_update_order_item_meta( $product['item_id'], $origSubTotalTaxKey, $product['totals']['subtotal_tax'] );
+                }
+
+                $origTotalKey = '_orig_total';
+                if(!wc_get_order_item_meta( $product['item_id'], $origTotalKey, $product['totals']['total'] )) {
+                    wc_update_order_item_meta( $product['item_id'], $origTotalKey, $product['totals']['total'] );
+                }
+
+                $origTaxKey = '_orig_tax';
+                if(!wc_get_order_item_meta( $product['item_id'], $origTaxKey, $product['totals']['tax'] )) {
+                    wc_update_order_item_meta( $product['item_id'], $origTaxKey, $product['totals']['tax'] );
                 }
 
                 if ( ! $item_id ) {
@@ -200,18 +220,18 @@ class AdminCloneSplitOrder {
                 } else {
                     $values[$i]['variation'] = array();
                 }
-//                $values[$i]['totals']['subtotal'] = $item_meta['_line_subtotal'][0];
-//                $values[$i]['totals']['subtotal_tax'] = $item_meta['_line_subtotal_tax'][0];
-//                $values[$i]['totals']['total'] = $item_meta['_line_total'][0];
-//                $values[$i]['totals']['tax'] = $item_meta['_line_tax'][0];
-//                $tax_data = maybe_unserialize($item_meta['_line_tax_data'][0]);
-//                if(!empty($tax_data['total'])) {
-//                    $values[$i]['totals']['tax_data'] = $tax_data;
-//                }
-                $values[$i]['totals']['subtotal'] = 0;
-                $values[$i]['totals']['subtotal_tax'] = 0;
-                $values[$i]['totals']['total'] = 0;
-                $values[$i]['totals']['tax'] = 0;
+                $values[$i]['totals']['subtotal'] = $item_meta['_line_subtotal'][0];
+                $values[$i]['totals']['subtotal_tax'] = $item_meta['_line_subtotal_tax'][0];
+                $values[$i]['totals']['total'] = $item_meta['_line_total'][0];
+                $values[$i]['totals']['tax'] = $item_meta['_line_tax'][0];
+                $tax_data = maybe_unserialize($item_meta['_line_tax_data'][0]);
+                if(!empty($tax_data['total'])) {
+                    $values[$i]['totals']['tax_data'] = $tax_data;
+                }
+//                $values[$i]['totals']['subtotal'] = 0;
+//                $values[$i]['totals']['subtotal_tax'] = 0;
+//                $values[$i]['totals']['total'] = 0;
+//                $values[$i]['totals']['tax'] = 0;
 
 
                 $i++;

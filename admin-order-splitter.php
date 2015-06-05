@@ -17,6 +17,7 @@ class adminOrderSplitter {
     protected $cloneMetaKey = 'aos-cloned-count';
     protected $origKey = '_orig_qty';
     protected $parentItemKey = '_parent_item_id';
+    protected $parentId;
 
     public function __construct()
     {
@@ -32,7 +33,8 @@ class adminOrderSplitter {
         add_filter("woocommerce_attribute_label", array($this, "woocommerce_attribute_label"));
         add_filter("woocommerce_order_add_product", array($this, "woocommerce_order_add_product"), 10, 5);
         add_action("woocommerce_after_order_itemmeta", array($this, "woocommerce_after_order_itemmeta"), 10,3);
-        add_action('woocommerce_process_shop_order_meta', array($this,'woocommerce_process_shop_order_meta'),10,2);
+        // make sure priority is last to make this hook work
+        add_action('woocommerce_process_shop_order_meta', array($this,'woocommerce_process_shop_order_meta'),999,2);
         add_filter('woocommerce_order_amount_item_total', array($this, 'woocommerce_order_amount_item_total'),10,5);
     }
 
@@ -157,7 +159,7 @@ class adminOrderSplitter {
     {
         $arr[] = $this->origKey;
         $arr[] = $this->parentItemKey;
-        
+
         return $arr;
     }
 
@@ -206,6 +208,7 @@ class adminOrderSplitter {
     function woocommerce_process_shop_order_meta($post_id, $post)
     {
         global $pagenow;
+
         $isClone = $this->isClone($post_id); // Only clone orders are processed
         if(!$isClone) return;
         //wc_get_order_item_meta
@@ -220,6 +223,7 @@ class adminOrderSplitter {
             $itemObj = new AdminSplitOrderItem($config);
             $resArr = array();
             $errors = array();
+
             foreach($itemMetas as $metaId) {
                 $itemObj->setItem($metaId);
                 $arr = $itemObj->tidyLineItem();
@@ -228,7 +232,9 @@ class adminOrderSplitter {
                 $totalQty = $arr['child_total'] + $itemQty;
 
                 $parentId = wc_get_order_item_meta($metaId, $parentItemKey);
+                $this->parentId = $parentId;
                 $parentOrigQty = wc_get_order_item_meta($parentId, $origKey);
+
 
                 if($totalQty > $parentOrigQty) {
                     $errors['aos-status-exceed'][] = $metaId;
@@ -236,6 +242,11 @@ class adminOrderSplitter {
                 } else {
                     $diff = $parentOrigQty - $totalQty;
                     wc_update_order_item_meta( $parentId, "_qty", $diff );
+                    if($itemQty > 0) {
+                        $this->updateLineTotals($metaId, $itemQty);
+                        $this->updateLineTotals($parentId, $diff); // update parent or original id as well
+
+                    }
                 }
 
 
@@ -252,6 +263,44 @@ class adminOrderSplitter {
 
 
 
+    }
+
+    function updateLineTotals($itemId, $qty)
+    {
+
+        $origKey = $this->origKey;
+
+        $parentId = $this->parentId;
+        $parentOrigQty = wc_get_order_item_meta($parentId, $origKey);
+        $parentOrigSubtotal = wc_get_order_item_meta($parentId, '_orig_subtotal');
+        $parentOrigSubtotalTax = wc_get_order_item_meta($parentId, '_orig_subtotal_tax');
+        $parentOrigTotal = wc_get_order_item_meta($parentId, '_orig_total');
+        $parentOrigTax = wc_get_order_item_meta($parentId, '_orig_tax');
+
+        // Calculate the one value
+        $oneParentOrigSubtotal = $parentOrigSubtotal / $parentOrigQty;
+        $oneParentOrigSubtotalTax = $parentOrigSubtotalTax / $parentOrigQty;
+        $oneParentOrigTotal = $parentOrigTotal / $parentOrigQty;
+        $oneParentOrigTax = $parentOrigTax / $parentOrigQty;
+
+        // Stores values based on the quanity inputted
+        $lineSubtotal = $oneParentOrigSubtotal * $qty;
+        $lineSubtotalTax = $oneParentOrigSubtotalTax * $qty;
+        $lineTotal = $oneParentOrigTotal * $qty;
+        $lineTax = $oneParentOrigTax * $qty;
+
+        wc_update_order_item_meta( $itemId, "_line_subtotal", $lineSubtotal );
+
+        wc_update_order_item_meta( $itemId, "_line_subtotal_tax", $lineSubtotalTax );
+        wc_update_order_item_meta( $itemId, "_line_total", $lineTotal );
+
+        wc_update_order_item_meta( $itemId, "_line_tax", $lineTax );
+        // I SHOULD GET BACK ON THIS GET PROPER TAX ID
+        $taxData = array();
+        $taxData['total'] = array(2 => $lineTax);
+        $taxData['subtotal'] = array(2 => $lineSubtotalTax);
+
+        wc_update_order_item_meta( $itemId, "_line_tax_data", $taxData );
     }
 
     function isClone($orderId)
