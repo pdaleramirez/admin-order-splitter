@@ -211,8 +211,8 @@ class adminOrderSplitter {
             $tax = wc_get_order_item_meta($parentId, '_orig_tax');
         } elseif(!empty($item[$origKey])) {
             $qty = $item[$origKey];
-            $total = $item['_orig_total'];
-            $tax = $item['_orig_tax'];
+            $total = $item['orig_total'];
+            $tax = $item['orig_tax'];
         }
         if(!empty($qty)) {
             echo ' <strong>Orignal Qty:</strong> ' . $qty . '<br />';
@@ -261,11 +261,9 @@ class adminOrderSplitter {
 
                 if($totalQty > $parentOrigQty) {
                     $errors['aos-status-exceed'][] = $metaId;
-
+                    $this->updateLineTotals($metaId, $itemQty);
                 } else {
                     $diff = $parentOrigQty - $totalQty;
-                    wc_update_order_item_meta( $parentId, "_qty", $diff );
-
                     $this->updateLineTotals($metaId, $itemQty);
                     $this->updateLineTotals($parentId, $diff); // update parent or original id as well
 
@@ -320,6 +318,7 @@ class adminOrderSplitter {
         wc_update_order_item_meta( $itemId, "_line_total", $lineTotal );
 
         wc_update_order_item_meta( $itemId, "_line_tax", $lineTax );
+        wc_update_order_item_meta( $itemId, "_qty", $qty );
         $lineTaxParent = wc_get_order_item_meta( $parentId, "_line_tax_data", true);
         $taxId = key($lineTaxParent['total']); // get the tax id line
 

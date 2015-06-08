@@ -51,6 +51,7 @@ class AdminCloneSplitOrder {
             foreach($products as $product) {
 
                 $taxId = key($product['totals']['tax_data']['total']);
+
                 $emptyTotals = array('subtotal' => 0, 'subtotal_tax' => 0,
                     'total' => 0, 'tax' => 0, 'tax_data' => array( 'total' => array( $taxId => 0 ), 'subtotal' =>
                     array( $taxId => 0 )));
@@ -101,6 +102,10 @@ class AdminCloneSplitOrder {
                     throw new Exception( sprintf( __( 'Error %d: Unable to create order. Please try again.', 'woocommerce' ), 402 ) );
                 }
             }
+            //$newOrderObj->add_tax($taxId);
+            $orderObj = $this->orderObj;
+
+            $newOrderObj->add_tax( $taxId, $orderObj->get_total_tax(), $orderObj->get_shipping_tax() );
         }
 
         $billing_fields = WC()->countries->get_address_fields( $this->get_address_value( 'billing_country' ),
@@ -164,7 +169,6 @@ class AdminCloneSplitOrder {
 
         $orderId = $this->orderId;
         $orderObj = $this->orderObj;
-
 
 
         $post = get_post($orderId);
