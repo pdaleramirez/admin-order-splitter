@@ -164,6 +164,7 @@ class adminOrderSplitter {
         $arr[] = '_orig_subtotal_tax';
         $arr[] = '_orig_total';
         $arr[] = '_orig_tax';
+        $arr[] = '_prev_qty';
 
         return $arr;
     }
@@ -261,14 +262,17 @@ class adminOrderSplitter {
 
                 if($totalQty > $parentOrigQty) {
                     $errors['aos-status-exceed'][] = $metaId;
-                    $this->updateLineTotals($metaId, $itemQty);
+                    // get previous quantity not the post qunatity cause it exceeds.
+                    $prevQty = wc_get_order_item_meta($metaId, '_prev_qty');
+                    if(empty($prevQty)) {
+                        $prevQty = 0;
+                    }
+                    $this->updateLineTotals($metaId, $prevQty);
                 } else {
                     $diff = $parentOrigQty - $totalQty;
                     $this->updateLineTotals($metaId, $itemQty);
                     $this->updateLineTotals($parentId, $diff); // update parent or original id as well
-
-
-
+                    wc_update_order_item_meta( $metaId, "_prev_qty", $itemQty ); // records qty for qty exceed error
                 }
 
 
