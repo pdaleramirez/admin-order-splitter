@@ -49,7 +49,8 @@ class adminOrderSplitter {
 
                     ?>
                     <div class="updated">
-                        <p><?php esc_html_e( 'Order #' . $orderObj->get_order_number($orderId) . ' has been cloned.', 'text-domain' ); ?></p>
+                        <p><?php esc_html_e( 'Order #' . $orderObj->get_order_number($orderId) . ' has been cloned.',
+                                'text-domain' ); ?></p>
                     </div>
                     <?php
                 }
@@ -159,6 +160,10 @@ class adminOrderSplitter {
     {
         $arr[] = $this->origKey;
         $arr[] = $this->parentItemKey;
+        $arr[] = '_orig_subtotal';
+        $arr[] = '_orig_subtotal_tax';
+        $arr[] = '_orig_total';
+        $arr[] = '_orig_tax';
 
         return $arr;
     }
@@ -167,6 +172,14 @@ class adminOrderSplitter {
     {
         if($label == $this->origKey) {
             $label = "Original Qty";
+        }
+
+        if($label == '_orig_total') {
+            $label = "Original Total";
+        }
+
+        if($label == '_orig_tax') {
+            $label = "Original Tax";
         }
         return $label;
     }
@@ -194,11 +207,17 @@ class adminOrderSplitter {
         $origKey = substr($origKey, 1);
         if($parentId) {
             $qty = wc_get_order_item_meta($parentId, $origKeyParent);
+            $total = wc_get_order_item_meta($parentId, '_orig_total');
+            $tax = wc_get_order_item_meta($parentId, '_orig_tax');
         } elseif(!empty($item[$origKey])) {
             $qty = $item[$origKey];
+            $total = $item['_orig_total'];
+            $tax = $item['_orig_tax'];
         }
         if(!empty($qty)) {
-            echo ' Orignal Qty: ' . $qty;
+            echo ' <strong>Orignal Qty:</strong> ' . $qty . '<br />';
+            echo ' <strong>Orignal Total:</strong> ' . $total . '<br />';
+            echo ' <strong>Orignal Tax:</strong> ' . $tax . '<br />';
         }
 
 
@@ -242,11 +261,12 @@ class adminOrderSplitter {
                 } else {
                     $diff = $parentOrigQty - $totalQty;
                     wc_update_order_item_meta( $parentId, "_qty", $diff );
-                    if($itemQty > 0) {
-                        $this->updateLineTotals($metaId, $itemQty);
-                        $this->updateLineTotals($parentId, $diff); // update parent or original id as well
 
-                    }
+                    $this->updateLineTotals($metaId, $itemQty);
+                    $this->updateLineTotals($parentId, $diff); // update parent or original id as well
+
+
+
                 }
 
 
@@ -269,6 +289,7 @@ class adminOrderSplitter {
     {
 
         $origKey = $this->origKey;
+
 
         $parentId = $this->parentId;
         $parentOrigQty = wc_get_order_item_meta($parentId, $origKey);
@@ -295,10 +316,12 @@ class adminOrderSplitter {
         wc_update_order_item_meta( $itemId, "_line_total", $lineTotal );
 
         wc_update_order_item_meta( $itemId, "_line_tax", $lineTax );
-        // I SHOULD GET BACK ON THIS GET PROPER TAX ID
+        $lineTaxParent = wc_get_order_item_meta( $parentId, "_line_tax_data", true);
+        $taxId = key($lineTaxParent['total']); // get the tax id line
+
         $taxData = array();
-        $taxData['total'] = array(2 => $lineTax);
-        $taxData['subtotal'] = array(2 => $lineSubtotalTax);
+        $taxData['total'] = array($taxId => $lineTax);
+        $taxData['subtotal'] = array($taxId => $lineSubtotalTax);
 
         wc_update_order_item_meta( $itemId, "_line_tax_data", $taxData );
     }
@@ -322,9 +345,9 @@ class adminOrderSplitter {
 
         if(isset($origQty)) {
             if ( $inc_tax ) {
-                $price = ( $item['line_total'] + $item['line_tax'] ) / max( 1, $origQty );
+                $price = ( $item['orig_total'] + $item['orig_tax'] ) / max( 1, $origQty );
             } else {
-                $price = $item['line_total'] / max( 1, $origQty );
+                $price = $item['orig_total'] / max( 1, $origQty );
             }
 
             $price = $round ? round( $price, 2 ) : $price;

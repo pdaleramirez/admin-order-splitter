@@ -45,11 +45,16 @@ class AdminCloneSplitOrder {
         update_post_meta( $newOrderId, '_customer_user', get_current_user_id() );
 
         // Initial total values for 0 quantity on cloned orders
-        $emptyTotals = array('subtotal' => 0, 'subtotal_tax' => 0,
-                            'total' => 0, 'tax' => 0);
+
         $newOrderObj = new WC_Order($newOrderId);
         if(!empty($products)) {
             foreach($products as $product) {
+
+                $taxId = key($product['totals']['tax_data']['total']);
+                $emptyTotals = array('subtotal' => 0, 'subtotal_tax' => 0,
+                    'total' => 0, 'tax' => 0, 'tax_data' => array( 'total' => array( $taxId => 0 ), 'subtotal' =>
+                    array( $taxId => 0 )));
+
                 $item_id = $newOrderObj->add_product(
                     $product['data'],
                     //$product['quantity'],
@@ -164,7 +169,7 @@ class AdminCloneSplitOrder {
 
         $post = get_post($orderId);
         $status = $post->post_status;
-        $customer_user = $orderObj->customer_user; // xxtempxx
+
 
         $customer_note = $post->post_excerpt;
 
@@ -224,8 +229,11 @@ class AdminCloneSplitOrder {
                 $values[$i]['totals']['subtotal_tax'] = $item_meta['_line_subtotal_tax'][0];
                 $values[$i]['totals']['total'] = $item_meta['_line_total'][0];
                 $values[$i]['totals']['tax'] = $item_meta['_line_tax'][0];
+
                 $tax_data = maybe_unserialize($item_meta['_line_tax_data'][0]);
+
                 if(!empty($tax_data['total'])) {
+
                     $values[$i]['totals']['tax_data'] = $tax_data;
                 }
 //                $values[$i]['totals']['subtotal'] = 0;
