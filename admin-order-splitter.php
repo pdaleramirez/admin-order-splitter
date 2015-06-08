@@ -216,11 +216,15 @@ class adminOrderSplitter {
         }
         if(!empty($qty)) {
             echo ' <strong>Orignal Qty:</strong> ' . $qty . '<br />';
-            echo ' <strong>Orignal Total:</strong> ' . $total . '<br />';
-            echo ' <strong>Orignal Tax:</strong> ' . $tax . '<br />';
         }
 
+        if(!empty($total)) {
+            echo ' <strong>Orignal Total:</strong> ' . $total . '<br />';
+        }
 
+        if(!empty($tax)) {
+            echo ' <strong>Orignal Tax:</strong> ' . $tax . '<br />';
+        }
     }
 
     // Handles quantiy update for each item
